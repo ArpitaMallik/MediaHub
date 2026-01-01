@@ -5,6 +5,16 @@ A minimal social media application built with **FastAPI** and **Streamlit** that
 
 The project focuses on clear backend architecture, modern authentication, and a simple but usable UI.
 
+### Login
+![Login page](screenshots/login.png)
+
+### Feed
+![Feed page](screenshots/feed.png)
+
+### Upload
+![Upload page](screenshots/createpost.png)
+
+
 ---
 
 ## Features

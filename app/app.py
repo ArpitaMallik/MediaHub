@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 from sqlalchemy import select
 from app.images import imagekit
-from imagekitio import UploadFileRequestOptions
+# from imagekitio import UploadFileRequestOptions
 import shutil
 import os
 import uuid
@@ -28,31 +28,45 @@ async def upload_file(
     
     temp_file_path = None
     try:
-        with tempfile.NameTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=os.path.splitext(file.filename)[1],
+        ) as temp_file:
             temp_file_path = temp_file.name
             shutil.copyfileobj(file.file, temp_file)
-        upload_result = imagekit.upload_file(
-            file=open(temp_file_path, "rb"),
-            file_name=file.filename,
-            options=UploadFileRequestOptions(
-                use_unique_file_name=True,
-                tags=["backend-upload"]
-            )
-        )
 
-        if upload_result.response_metadata.http_status_code == 200:
-            post = Post(
-                caption=caption,
-                url=upload_result.url,
-                file_type="video" if file.content_type.startswith("video/") else "image",
-                file_name=upload_result.name
+        
+        with open(temp_file_path, "rb") as f:
+            upload_result = imagekit.upload_file(
+                file=f,
+                file_name=file.filename,
+                options={
+                    "use_unique_file_name": True,
+                    "tags": ["backend-upload"],
+                },
             )
-            session.add(post)
-            await session.commit() 
-            await session.refresh(post)
-            return post
+
+        # upload_result may be dict-like or object-like depending on SDK build
+        url = getattr(upload_result, "url", None) or (upload_result.get("url") if isinstance(upload_result, dict) else None)
+        name = getattr(upload_result, "name", None) or (upload_result.get("name") if isinstance(upload_result, dict) else None)
+
+        if not url or not name:
+            raise HTTPException(status_code=500, detail=f"ImageKit upload failed: {upload_result}")
+
+        post = Post(
+            caption=caption,
+            url=url,
+            file_type="video" if (file.content_type or "").startswith("video/") else "image",
+            file_name=name,
+        )
+        session.add(post)
+        await session.commit()
+        await session.refresh(post)
+        return post
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)

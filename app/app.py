@@ -47,11 +47,19 @@ async def upload_file(
             )
 
         # upload_result may be dict-like or object-like depending on SDK build
-        url = getattr(upload_result, "url", None) or (upload_result.get("url") if isinstance(upload_result, dict) else None)
-        name = getattr(upload_result, "name", None) or (upload_result.get("name") if isinstance(upload_result, dict) else None)
+        if isinstance(upload_result, dict):
+            resp = upload_result.get("response") or {}
+            url = resp.get("url")
+            name = resp.get("name")
+        else:
+            # fallback if it's an object
+            resp = getattr(upload_result, "response", None)
+            url = getattr(resp, "url", None) if resp else getattr(upload_result, "url", None)
+            name = getattr(resp, "name", None) if resp else getattr(upload_result, "name", None)
 
         if not url or not name:
             raise HTTPException(status_code=500, detail=f"ImageKit upload failed: {upload_result}")
+
 
         post = Post(
             caption=caption,
@@ -93,3 +101,23 @@ async def get_feed(
             }
         )
     return {"posts": posts_data}
+
+
+
+@app.delete("/posts/{post_id}")
+async def delete_post(post_id: str, session: AsyncSession = Depends(get_async_session)):
+    try:
+        post_uuid = uuid.UUID(post_id)
+
+        result = await session.execute(select(Post).where(Post.id == post_uuid))
+        post = result.scalars().first()
+
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        await session.delete(post)
+        await session.commit()
+
+        return {"success": True, "message": "Post deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

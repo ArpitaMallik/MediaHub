@@ -42,7 +42,6 @@ The project focuses on clear backend architecture, modern authentication, and a 
 ### Frontend
 
 * Streamlit
-* Requests
 
 ---
 
@@ -70,7 +69,7 @@ MediaHub/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/ArpitaMallik/MediaHub.git
+git clone https://github.com/ArpitaMallik/MediaHub.git](https://github.com/ArpitaMallik/Simple-Social.git
 cd MediaHub
 ```
 
